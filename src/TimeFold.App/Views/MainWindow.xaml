@@ -13,6 +13,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -25,7 +26,8 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Today"
+                <TextBlock x:Name="HeadingText"
+                           Text="Today"
                            FontSize="24"
                            FontWeight="SemiBold" />
                 <TextBlock x:Name="DateText"
@@ -54,8 +56,67 @@
             </StackPanel>
         </Grid>
 
+        <!-- ================= Go to a day, or search ================= -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="PreviousDayButton"
+                    Grid.Column="0"
+                    Content="&#x25C0;"
+                    ToolTip="The day before"
+                    Padding="12,7"
+                    Click="OnPreviousDayClicked" />
+
+            <DatePicker x:Name="DayPicker"
+                        Grid.Column="1"
+                        Width="140"
+                        Margin="6,0,6,0"
+                        VerticalContentAlignment="Center"
+                        SelectedDateChanged="OnDayPicked" />
+
+            <Button x:Name="NextDayButton"
+                    Grid.Column="2"
+                    Content="&#x25B6;"
+                    ToolTip="The day after"
+                    Padding="12,7"
+                    Click="OnNextDayClicked" />
+
+            <Button Grid.Column="3"
+                    Content="Today"
+                    Padding="12,7"
+                    Margin="6,0,0,0"
+                    Click="OnTodayClicked" />
+
+            <Rectangle Grid.Column="4"
+                       Width="1"
+                       Margin="14,2,14,2"
+                       Fill="{StaticResource BorderColour}" />
+
+            <TextBox x:Name="SearchBox"
+                     Grid.Column="5"
+                     Padding="8,6"
+                     VerticalContentAlignment="Center"
+                     TextChanged="OnSearchTextChanged"
+                     ToolTip="Search every day you have ever recorded" />
+
+            <Button x:Name="ClearSearchButton"
+                    Grid.Column="6"
+                    Content="Clear search"
+                    Padding="12,7"
+                    Margin="6,0,0,0"
+                    Click="OnClearSearchClicked" />
+        </Grid>
+
         <!-- ================= Status strip ================= -->
-        <Border Grid.Row="1"
+        <Border Grid.Row="2"
                 Background="{StaticResource PanelBackground}"
                 BorderBrush="{StaticResource BorderColour}"
                 BorderThickness="1"
@@ -66,7 +127,7 @@
         </Border>
 
         <!-- ================= The list ================= -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 BorderBrush="{StaticResource BorderColour}"
                 BorderThickness="1"
                 CornerRadius="6">
@@ -86,6 +147,35 @@
                                       Click="OnBlockAppClicked" />
                         </ContextMenu>
                     </ListView.ContextMenu>
+                    <!--
+                        Grouped by hour. Thirty lines in a row all say the same
+                        thing; "2 PM" above them says when, which is the question
+                        this window exists to answer.
+                    -->
+                    <ListView.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource PanelBackground}"
+                                            BorderBrush="{StaticResource BorderColour}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="10,6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontWeight="SemiBold"
+                                                       FontSize="13" />
+                                            <TextBlock Text="{Binding ItemCount, StringFormat=  ({0})}"
+                                                       FontSize="12"
+                                                       Margin="6,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{StaticResource TextMuted}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListView.GroupStyle>
+
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="Time" Width="150"
@@ -112,7 +202,7 @@
         </Border>
 
         <!-- ================= Footer ================= -->
-        <TextBlock Grid.Row="3"
+        <TextBlock Grid.Row="4"
                    x:Name="FooterText"
                    FontSize="11"
                    Foreground="{StaticResource TextMuted}"

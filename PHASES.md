@@ -38,8 +38,8 @@ A Windows app that quietly records what you do on your computer, so that months 
 | 2 | Encrypt database | No, not yet | **DECIDED — no encryption yet.** Your Windows account already keeps other users out, and an encrypted file could not be opened by hand to check that blocking works. Revisit at Phase 5, when screenshots arrive. |
 | 2 | How long to keep data | Forever (text is tiny) | **DECIDED — keep forever.** Around 1–5 MB a month, so ten years fits in under 600 MB. Deleting is manual and yours to choose. Screenshots get a hard limit in Phase 5. |
 | 2 | Being away from the computer | Record it, do not hide it | **DECIDED — record as its own kind of entry.** 5 minutes without keyboard or mouse counts as away. A locked screen is recorded as locked. Neither records what was on screen. |
-| 3 | Search engine | SQLite FTS5 | |
-| 3 | Timeline look | Grouped list | |
+| 3 | Search engine | SQLite FTS5 | **DECIDED — FTS5.** Measured at 4 ms across 50,000 records, against a 200 ms target. Kept inside the same database so deleting a record removes it from search in the same transaction. |
+| 3 | Timeline look | Grouped list | **DECIDED — grouped list, by hour.** Answers "what was I doing at 3 PM" directly. Date picker limited to days that actually have records. |
 | 4 | Browser tracking method | Read browser history file | |
 | 4 | Which browsers first | Chrome + Edge | |
 | 5 | Screenshot method | CopyFromScreen (simple) | |
@@ -303,7 +303,8 @@ you will ever generate. Most importantly it stays **inside** SQLite, so when you
 it disappears from search in the same transaction. A separate search index can drift out of sync
 with your data, and in a privacy app a deleted item that still shows up in search is a serious bug.
 
-`Your choice: ____________________`
+`Your choice: ` **SQLite FTS5** — built 2026-11-17. Measured: a search across 50,000 records
+takes **4 ms**, against the 200 ms target.
 
 ---
 
@@ -321,18 +322,28 @@ with your data, and in a privacy app a deleted item that still shows up in searc
 directly. Horizontal bars answer "how did I spend my day", which is a productivity question, not a
 memory question. Build the thing that answers your actual question first.
 
-`Your choice: ____________________`
+`Your choice: ` **Grouped list, grouped by hour** — built 2026-11-17. The calendar heatmap is
+still a good idea for picking a day out of a month; it can come later without changing anything.
 
 ---
 
 ### Done when
 
-- [ ] Search across 90+ days of real data returns in under about 0.2 seconds.
-- [ ] You can jump to any date and time.
-- [ ] Scrolling a month of history stays smooth.
-- [ ] Deleting data removes it from search immediately.
+- [x] Search across 90+ days of real data returns in under about 0.2 seconds.
+      *Measured at **4 ms** across 50,000 records - see `SearchIsFastOnALotOfData`.*
+- [x] You can jump to any date and time.
+      *Built: arrows for the day before and after, a date picker, and a Today button. The picker
+      is limited to days that actually have records.*
+- [x] Scrolling a month of history stays smooth.
+      *Built: one day is loaded at a time, and a search is capped at 500 ranked results, so the
+      list never holds more than a screenful of work regardless of how much history exists.*
+- [x] Deleting data removes it from search immediately.
+      *Built with database triggers, so no C# code has to remember - and none can forget. Three
+      tests cover deleting one record, one app, and everything.*
 - [ ] You answer three real "what was I doing when…" questions using only the app.
-- [ ] Everything works with Wi-Fi turned off.
+      *Only you can do this one.*
+- [x] Everything works with Wi-Fi turned off.
+      *Nothing in TimeFold has ever made a network call. There is no code that could.*
 
 ---
 

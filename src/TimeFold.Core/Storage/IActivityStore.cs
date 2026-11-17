@@ -49,6 +49,27 @@ public interface IActivityStore
     /// <summary>All records, oldest first. Used when exporting everything.</summary>
     List<ActivityRecord> GetAllRecords();
 
+    // ---- searching ---------------------------------------------------------
+
+    /// <summary>
+    /// Finds records whose window title or app name match what you typed,
+    /// best matches first.
+    ///
+    /// Returns an empty list when there is nothing to search for. Never
+    /// everything - an empty search box meaning "show me all of it" would be a
+    /// surprising amount of data and a slow surprise at that.
+    /// </summary>
+    List<ActivityRecord> Search(string typedText, int maximumResults);
+
+    /// <summary>The first and last day with anything recorded, or null when empty.</summary>
+    void GetRecordedDateRange(out long? firstUtcMs, out long? lastUtcMs);
+
+    /// <summary>
+    /// Which local days have anything recorded, newest first.
+    /// Used so the date picker can skip over days you were not at the computer.
+    /// </summary>
+    List<DateTime> GetDaysWithRecords();
+
     // ---- deleting ----------------------------------------------------------
     //
     // Every delete returns how many rows went, so the screen can tell you what

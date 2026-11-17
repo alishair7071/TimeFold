@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Threading;
 using TimeFold.App.Composition;
 using TimeFold.Core.Models;
@@ -13,13 +15,11 @@ using MessageBox = System.Windows.MessageBox;
 namespace TimeFold.App.Views;
 
 /// <summary>
-/// The window showing what you did today.
+/// The timeline: what you did, on any day you have recorded.
 ///
 /// It only reads and displays. It never records anything, never touches the
 /// database directly, and never calls Windows APIs. It asks AppHost for data
 /// and shows it.
-///
-/// Phase 3 replaces this with a proper timeline that can show any date.
 /// </summary>
 public partial class MainWindow : Window
 {
@@ -32,39 +32,187 @@ public partial class MainWindow : Window
 
         _host = host;
 
+        DayPicker.SelectedDate = _shownDay;
+        LimitThePickerToDaysThatExist();
+
         // Refresh every few seconds so the list stays current while open.
         _refreshTimer = new DispatcherTimer();
         _refreshTimer.Interval = TimeSpan.FromSeconds(5);
-        _refreshTimer.Tick += delegate { RefreshNow(); };
+        _refreshTimer.Tick += delegate { RefreshIfItWouldNotInterrupt(); };
         _refreshTimer.Start();
 
         RefreshNow();
     }
 
-    /// <summary>Reloads today's records and redraws the window.</summary>
+    // =======================================================================
+    //  Which day am I looking at, and am I searching?
+    // =======================================================================
+
+    /// <summary>The day being shown. Ignored while a search is running.</summary>
+    private DateTime _shownDay = DateTime.Today;
+
+    /// <summary>What is typed in the search box, or empty for none.</summary>
+    private string _searchText = "";
+
+    private bool IsSearching
+    {
+        get { return !string.IsNullOrWhiteSpace(_searchText); }
+    }
+
+    /// <summary>
+    /// Greys out dates with nothing behind them.
+    ///
+    /// You cannot have recorded anything before the first record or after
+    /// today, so offering those dates would only let you land on an empty page
+    /// and wonder whether something was lost.
+    /// </summary>
+    private void LimitThePickerToDaysThatExist()
+    {
+        try
+        {
+            long? firstUtcMs;
+            long? lastUtcMs;
+
+            _host.Store.GetRecordedDateRange(out firstUtcMs, out lastUtcMs);
+
+            DayPicker.DisplayDateEnd = DateTime.Today;
+
+            if (firstUtcMs != null)
+            {
+                DayPicker.DisplayDateStart =
+                    AppClock.ToLocalTime(firstUtcMs.Value, AppClock.CurrentOffsetMinutes()).Date;
+            }
+        }
+        catch (Exception error)
+        {
+            // Not worth bothering you about - the picker simply stays open.
+            _host.Logger.Error("Could not work out the recorded date range.", error);
+        }
+    }
+
+    /// <summary>
+    /// The automatic refresh, which must not get in your way.
+    ///
+    /// Redrawing the list throws away where you had scrolled to and what you
+    /// had selected. That is fine while you watch today filling up, and
+    /// infuriating while you are reading a day from last month or typing in the
+    /// search box. Neither of those changes on its own, so there is nothing to
+    /// refresh for.
+    /// </summary>
+    private void RefreshIfItWouldNotInterrupt()
+    {
+        if (IsSearching)
+        {
+            return;
+        }
+
+        if (_shownDay != DateTime.Today)
+        {
+            return;
+        }
+
+        RefreshNow();
+    }
+
+    private void OnPreviousDayClicked(object sender, RoutedEventArgs e)
+    {
+        GoToDay(_shownDay.AddDays(-1));
+    }
+
+    private void OnNextDayClicked(object sender, RoutedEventArgs e)
+    {
+        GoToDay(_shownDay.AddDays(1));
+    }
+
+    private void OnTodayClicked(object sender, RoutedEventArgs e)
+    {
+        GoToDay(DateTime.Today);
+    }
+
+    private void OnDayPicked(object sender, SelectionChangedEventArgs e)
+    {
+        if (DayPicker.SelectedDate == null)
+        {
+            return;
+        }
+
+        GoToDay(DayPicker.SelectedDate.Value.Date);
+    }
+
+    private void GoToDay(DateTime day)
+    {
+        _shownDay = day.Date;
+
+        // Choosing a day means you want to look at that day, so a search left
+        // in the box would hide what you just asked to see.
+        if (IsSearching)
+        {
+            _searchText = "";
+            SearchBox.Text = "";
+        }
+
+        if (DayPicker.SelectedDate != _shownDay)
+        {
+            DayPicker.SelectedDate = _shownDay;
+        LimitThePickerToDaysThatExist();
+        }
+
+        RefreshNow();
+    }
+
+    private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
+    {
+        _searchText = SearchBox.Text == null ? "" : SearchBox.Text;
+        RefreshNow();
+    }
+
+    private void OnClearSearchClicked(object sender, RoutedEventArgs e)
+    {
+        SearchBox.Text = "";
+        _searchText = "";
+        RefreshNow();
+    }
+
+    // =======================================================================
+    //  Drawing the list
+    // =======================================================================
+
+    /// <summary>Reloads what is being shown and redraws the window.</summary>
     public void RefreshNow()
     {
         try
         {
-            long fromUtcMs;
-            long toUtcMs;
-            AppClock.GetLocalDayRangeUtcMs(DateTime.Now, out fromUtcMs, out toUtcMs);
+            List<ActivityRecord> records;
+            bool searching = IsSearching;
 
-            List<ActivityRecord> records = _host.Store.GetRecordsBetween(fromUtcMs, toUtcMs);
-
-            // Newest at the top - that is almost always what you want to see first.
-            records.Reverse();
-
-            List<ActivityRow> rows = new List<ActivityRow>();
-            foreach (ActivityRecord record in records)
+            if (searching)
             {
-                rows.Add(ActivityRow.FromRecord(record));
+                // Searches cover every day, so there is no date range here.
+                records = _host.Store.Search(_searchText, MaximumSearchResults);
+            }
+            else
+            {
+                long fromUtcMs;
+                long toUtcMs;
+                AppClock.GetLocalDayRangeUtcMs(_shownDay, out fromUtcMs, out toUtcMs);
+
+                records = _host.Store.GetRecordsBetween(fromUtcMs, toUtcMs);
+
+                // Newest at the top - almost always what you want to see first.
+                records.Reverse();
             }
 
-            ActivityList.ItemsSource = rows;
-            EmptyMessage.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            List<ActivityRow> rows = new List<ActivityRow>();
 
-            UpdateHeaderAndStatus(rows.Count);
+            foreach (ActivityRecord record in records)
+            {
+                // Search results carry their date in the heading, because two
+                // results an hour apart might be a month apart.
+                rows.Add(ActivityRow.FromRecord(record, searching));
+            }
+
+            ShowRows(rows);
+            UpdateHeaderAndStatus(rows.Count, searching);
         }
         catch (Exception error)
         {
@@ -73,9 +221,75 @@ public partial class MainWindow : Window
         }
     }
 
-    private void UpdateHeaderAndStatus(int rowCount)
+    /// <summary>
+    /// How many search results to fetch.
+    ///
+    /// A limit is needed because searching a common word across years could
+    /// match tens of thousands of rows, and nobody reads past the first page.
+    /// Ranked results mean the best ones are inside the limit anyway.
+    /// </summary>
+    private const int MaximumSearchResults = 500;
+
+    /// <summary>
+    /// Puts the rows on screen, grouped by hour.
+    ///
+    /// CollectionViewSource is what does the grouping. The alternative - adding
+    /// fake heading rows into the list - would mean every piece of code that
+    /// touches a row having to check whether it is a real one first.
+    /// </summary>
+    private void ShowRows(List<ActivityRow> rows)
     {
-        DateText.Text = DateTime.Now.ToString("dddd, d MMMM yyyy");
+        CollectionViewSource view = new CollectionViewSource();
+        view.Source = rows;
+        view.GroupDescriptions.Add(new PropertyGroupDescription("HourGroup"));
+
+        ActivityList.ItemsSource = view.View;
+
+        EmptyMessage.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        if (rows.Count == 0)
+        {
+            EmptyMessage.Text = IsSearching
+                ? "Nothing found for what you typed."
+                : "Nothing recorded on this day.";
+        }
+    }
+
+    /// <summary>
+    /// "Today", "Yesterday", or the date. The two words save you working out
+    /// whether 16 November was yesterday, which is the sort of small friction
+    /// that makes an app feel like work.
+    /// </summary>
+    private static string DescribeDay(DateTime day)
+    {
+        if (day == DateTime.Today)
+        {
+            return "Today";
+        }
+
+        if (day == DateTime.Today.AddDays(-1))
+        {
+            return "Yesterday";
+        }
+
+        return day.ToString("d MMMM yyyy");
+    }
+
+    private void UpdateHeaderAndStatus(int rowCount, bool searching)
+    {
+        if (searching)
+        {
+            HeadingText.Text = "Search";
+            DateText.Text = "Every day you have ever recorded.";
+        }
+        else
+        {
+            HeadingText.Text = DescribeDay(_shownDay);
+            DateText.Text = _shownDay.ToString("dddd, d MMMM yyyy");
+        }
+
+        // There is no history in the future, so there is nowhere to go.
+        NextDayButton.IsEnabled = _shownDay < DateTime.Today;
 
         bool paused = _host.Recording.IsPaused;
 
@@ -85,9 +299,13 @@ public partial class MainWindow : Window
             ? "PAUSED - nothing is being recorded."
             : "Recording.";
 
+        string what = searching
+            ? rowCount + " result(s)."
+            : rowCount + " entries on this day.";
+
         StatusText.Text =
             state + "   " +
-            rowCount + " entries today.   " +
+            what + "   " +
             _host.Recording.SavedCount + " saved this session, " +
             _host.Recording.DroppedCount + " blocked by the privacy gate.";
 

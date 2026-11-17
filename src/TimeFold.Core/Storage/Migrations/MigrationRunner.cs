@@ -35,8 +35,8 @@ public class MigrationRunner
         return new List<IMigration>
         {
             new Migration001_CreateTables(),
-            new Migration002_CreateBlockRules()
-            // Phase 3 will add: new Migration003_FullTextSearch()
+            new Migration002_CreateBlockRules(),
+            new Migration003_FullTextSearch()
         };
     }
 

@@ -220,6 +220,121 @@ public class SqliteActivityStore : IActivityStore
         return records;
     }
 
+    // ---- searching ---------------------------------------------------------
+
+    public List<ActivityRecord> Search(string typedText, int maximumResults)
+    {
+        List<ActivityRecord> results = new List<ActivityRecord>();
+
+        string matchExpression = SearchQuery.Build(typedText);
+
+        // Nothing worth searching for. Returning everything here would be both
+        // surprising and slow.
+        if (matchExpression == null)
+        {
+            return results;
+        }
+
+        using (SqliteConnection connection = _database.OpenConnection())
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            // The search index and the records are joined on rowid - the hidden
+            // row number SQLite gives every table. The triggers in migration 3
+            // keep the two sides pointing at the same rows.
+            //
+            // ORDER BY rank puts the best matches first. In FTS5 a better match
+            // is a MORE NEGATIVE number, so ascending order is correct here
+            // even though it reads like the wrong way round.
+            command.CommandText = @"
+                SELECT r.id, r.kind, r.source,
+                       r.started_at_utc_ms, r.ended_at_utc_ms, r.tz_offset_minutes,
+                       r.app_name, r.exe_path, r.window_title, r.details_json,
+                       r.saved_at_utc_ms, r.updated_at_utc_ms, r.row_version
+                FROM activity_search s
+                JOIN activity_records r ON r.rowid = s.rowid
+                WHERE activity_search MATCH $match
+                ORDER BY rank, r.started_at_utc_ms DESC
+                LIMIT $limit;
+            ";
+
+            command.Parameters.AddWithValue("$match", matchExpression);
+            command.Parameters.AddWithValue("$limit", maximumResults);
+
+            using (SqliteDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    results.Add(ReadRecord(reader));
+                }
+            }
+        }
+
+        return results;
+    }
+
+    public void GetRecordedDateRange(out long? firstUtcMs, out long? lastUtcMs)
+    {
+        firstUtcMs = null;
+        lastUtcMs = null;
+
+        using (SqliteConnection connection = _database.OpenConnection())
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText =
+                "SELECT MIN(started_at_utc_ms), MAX(started_at_utc_ms) FROM activity_records;";
+
+            using (SqliteDataReader reader = command.ExecuteReader())
+            {
+                if (reader.Read() && !reader.IsDBNull(0))
+                {
+                    firstUtcMs = reader.GetInt64(0);
+                    lastUtcMs = reader.GetInt64(1);
+                }
+            }
+        }
+    }
+
+    public List<DateTime> GetDaysWithRecords()
+    {
+        List<DateTime> days = new List<DateTime>();
+
+        using (SqliteConnection connection = _database.OpenConnection())
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            // The day is worked out in C# rather than in SQL on purpose.
+            //
+            // A record stores UTC plus the timezone offset at the moment it
+            // happened. Which local day that lands on therefore depends on the
+            // record's own offset, not on today's. Doing this in SQL would mean
+            // either ignoring that - putting late-evening records on the wrong
+            // day - or writing date arithmetic in SQL that nobody could read.
+            command.CommandText = @"
+                SELECT started_at_utc_ms, tz_offset_minutes
+                FROM activity_records
+                ORDER BY started_at_utc_ms DESC;
+            ";
+
+            HashSet<DateTime> seen = new HashSet<DateTime>();
+
+            using (SqliteDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    DateTime localDay = AppClock
+                        .ToLocalTime(reader.GetInt64(0), reader.GetInt32(1))
+                        .Date;
+
+                    if (seen.Add(localDay))
+                    {
+                        days.Add(localDay);
+                    }
+                }
+            }
+        }
+
+        return days;
+    }
+
     // ---- deleting ----------------------------------------------------------
 
     public int DeleteRecord(string id)

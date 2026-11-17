@@ -1,0 +1,157 @@
+<Window x:Class="TimeFold.App.Views.BlockedAppsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="TimeFold - Blocked apps"
+        Height="620"
+        Width="860"
+        MinHeight="420"
+        MinWidth="640"
+        WindowStartupLocation="CenterOwner"
+        Background="White">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= Header ================= -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Blocked apps"
+                       FontSize="24"
+                       FontWeight="SemiBold" />
+            <TextBlock Text="Anything matching a switched-on rule is never written to the database. Not hidden - never saved."
+                       FontSize="13"
+                       TextWrapping="Wrap"
+                       Foreground="{StaticResource TextMuted}"
+                       Margin="0,2,0,0" />
+        </StackPanel>
+
+        <!-- ================= Add a rule ================= -->
+        <Border Grid.Row="1"
+                Background="{StaticResource PanelBackground}"
+                BorderBrush="{StaticResource BorderColour}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="12"
+                Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Add a rule"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,8" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ComboBox x:Name="MatchTypeBox"
+                              Grid.Column="0"
+                              Width="210"
+                              Padding="8,6"
+                              VerticalContentAlignment="Center"
+                              SelectionChanged="OnMatchTypeChanged" />
+
+                    <TextBox x:Name="PatternBox"
+                             Grid.Column="1"
+                             Margin="8,0,8,0"
+                             Padding="8,6"
+                             VerticalContentAlignment="Center"
+                             KeyDown="OnPatternKeyDown" />
+
+                    <Button x:Name="AddButton"
+                            Grid.Column="2"
+                            Content="Add rule"
+                            Padding="16,7"
+                            Click="OnAddClicked" />
+                </Grid>
+
+                <TextBlock x:Name="HelpText"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource TextMuted}"
+                           Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- ================= The rules ================= -->
+        <Border Grid.Row="2"
+                BorderBrush="{StaticResource BorderColour}"
+                BorderThickness="1"
+                CornerRadius="4">
+            <Grid>
+                <ListView x:Name="RulesList"
+                          BorderThickness="0"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="On" Width="50">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                                                  Checked="OnRuleToggled"
+                                                  Unchecked="OnRuleToggled"
+                                                  Tag="{Binding Id}"
+                                                  HorizontalAlignment="Center" />
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+
+                            <GridViewColumn Header="Matches on"
+                                            Width="170"
+                                            DisplayMemberBinding="{Binding MatchTypeText}" />
+
+                            <GridViewColumn Header="Pattern"
+                                            Width="250"
+                                            DisplayMemberBinding="{Binding Pattern}" />
+
+                            <GridViewColumn Header="Note"
+                                            Width="230"
+                                            DisplayMemberBinding="{Binding Note}" />
+
+                            <GridViewColumn Header="From"
+                                            Width="90"
+                                            DisplayMemberBinding="{Binding SourceText}" />
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+
+                <TextBlock x:Name="EmptyMessage"
+                           Text="No block rules. Nothing is being excluded from your history."
+                           Foreground="{StaticResource TextMuted}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Visibility="Collapsed" />
+            </Grid>
+        </Border>
+
+        <!-- ================= Footer ================= -->
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="StatusText"
+                       Grid.Column="0"
+                       FontSize="12"
+                       VerticalAlignment="Center"
+                       Foreground="{StaticResource TextMuted}" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="DeleteButton"
+                        Content="Delete selected rule"
+                        Padding="14,7"
+                        Margin="0,0,8,0"
+                        Click="OnDeleteClicked" />
+                <Button Content="Close"
+                        Padding="14,7"
+                        Click="OnCloseClicked" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

@@ -117,6 +117,24 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// Opens the blocked apps screen.
+    ///
+    /// ShowDialog keeps it in front until you close it, so there is no way to
+    /// have two of these open disagreeing about what the rules are.
+    /// </summary>
+    private void OnBlockedAppsButtonClicked(object sender, RoutedEventArgs e)
+    {
+        BlockedAppsWindow window = new BlockedAppsWindow(_host);
+        window.Owner = this;
+        window.ShowDialog();
+
+        // Blocking something does not remove what is already recorded, so the
+        // list behind is still correct - but refresh anyway so the counts at
+        // the top are up to date.
+        RefreshNow();
+    }
+
+    /// <summary>
     /// Closing the window HIDES it. It does not quit TimeFold.
     ///
     /// This is the most important behaviour in the whole app: TimeFold must keep

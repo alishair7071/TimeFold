@@ -34,8 +34,8 @@ public class MigrationRunner
     {
         return new List<IMigration>
         {
-            new Migration001_CreateTables()
-            // Phase 2 will add: new Migration002_PrivacyRules()
+            new Migration001_CreateTables(),
+            new Migration002_CreateBlockRules()
             // Phase 3 will add: new Migration003_FullTextSearch()
         };
     }

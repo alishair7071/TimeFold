@@ -1,11 +1,17 @@
 namespace TimeFold.Core.Privacy;
 
 /// <summary>
-/// Apps that TimeFold never records, straight out of the box.
+/// The rules TimeFold ships with.
 ///
-/// Phase 1 keeps this list short and in code on purpose. The point is only that
-/// the very first version can never record a password manager by accident.
-/// Phase 2 moves these into the database and lets you add your own.
+/// Since Phase 2.1 this list is no longer what the gate reads. It is the
+/// starting contents of the block_rules table, written once into a new
+/// database by BlockListSeeder. After that the table is yours: switch these
+/// off, delete them, add your own.
+///
+/// The list stays deliberately short. It covers only the things that would be
+/// indefensible to record by accident - password managers and the Windows
+/// sign-in screens. Guessing at what else you consider private is your call to
+/// make, not ours.
 /// </summary>
 public static class DefaultBlockList
 {
@@ -41,6 +47,12 @@ public static class DefaultBlockList
 
     private static void AddExe(List<BlockRule> rules, string exeFileName, string note)
     {
-        rules.Add(new BlockRule(BlockMatchType.ExeFileName, exeFileName, note));
+        BlockRule rule = new BlockRule(BlockMatchType.ExeFileName, exeFileName, note);
+
+        // Marked so the screen can show which rules came from TimeFold and
+        // which ones you added yourself.
+        rule.IsBuiltIn = true;
+
+        rules.Add(rule);
     }
 }

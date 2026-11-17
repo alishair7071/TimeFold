@@ -25,6 +25,8 @@ public class AppHost
     public Database Database { get; private set; }
     public IActivityStore Store { get; private set; }
     public SettingsService Settings { get; private set; }
+    public IBlockRuleStore BlockRules { get; private set; }
+    public BlockRuleProvider BlockRuleProvider { get; private set; }
     public RecordingService Recording { get; private set; }
     public AutoStartService AutoStart { get; private set; }
 
@@ -50,22 +52,35 @@ public class AppHost
 
         string deviceId = Settings.GetOrCreateDeviceId();
 
-        // 5. The privacy gate. Built before the watcher on purpose - nothing
-        //    should ever be watched without a gate ready to filter it.
-        PrivacyGate gate = new PrivacyGate(DefaultBlockList.Create());
+        // 5. Block rules. These live in the database so you can edit them.
+        //    A brand new database is given the rules TimeFold ships with, once.
+        BlockRules = new SqliteBlockRuleStore(Database);
 
-        // 6. The watcher.
+        BlockListSeeder seeder = new BlockListSeeder(BlockRules, Settings, Logger);
+        seeder.SeedIfNeeded();
+
+        BlockRuleProvider = new BlockRuleProvider(BlockRules);
+        BlockRuleProvider.Reload();
+
+        // 6. The privacy gate. Built before the watcher on purpose - nothing
+        //    should ever be watched without a gate ready to filter it.
+        PrivacyGate gate = new PrivacyGate(BlockRuleProvider);
+
+        Logger.Info("Privacy gate ready with " + BlockRuleProvider.GetRules().Count +
+                    " active block rules.");
+
+        // 7. The watcher.
         ForegroundWindowReader reader = new ForegroundWindowReader();
         WindowWatcher watcher = new WindowWatcher(reader, Logger, deviceId);
 
-        // 7. Join watcher + gate + store together.
+        // 8. Join watcher + gate + store together.
         Recording = new RecordingService(watcher, gate, Store, Settings, Logger);
 
-        // 8. Windows startup entry.
+        // 9. Windows startup entry.
         AutoStart = new AutoStartService(Logger);
         LeaveAutoStartToTheUser();
 
-        // 9. Begin recording.
+        // 10. Begin recording.
         Recording.Start();
 
         Logger.Info("TimeFold started. Database: " + Database.FilePath);

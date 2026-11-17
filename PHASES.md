@@ -217,7 +217,7 @@ updates, and title matching catches the case where a normal app shows something 
 important part is the rule: **if we are not sure, record nothing.** It is better to lose one boring
 entry than to save one private one.
 
-`Your choice: ____________________`
+`Your choice: ______as you wish______________`
 
 ---
 

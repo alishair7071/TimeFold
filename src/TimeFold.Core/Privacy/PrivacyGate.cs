@@ -24,11 +24,28 @@ namespace TimeFold.Core.Privacy;
 /// </summary>
 public class PrivacyGate
 {
-    private readonly List<BlockRule> _rules;
+    /// <summary>
+    /// Where the rules come from, asked afresh on every check.
+    ///
+    /// It is a function rather than a stored list so that editing your block
+    /// rules takes effect immediately. If the gate held a copy of the list, a
+    /// rule you just added would do nothing until the app restarted - and a
+    /// privacy control that does not take effect when you set it is worse than
+    /// no control at all, because you would believe you were protected.
+    /// </summary>
+    private readonly Func<List<BlockRule>> _getRules;
 
+    /// <summary>Normal use: rules come from the database, through the provider.</summary>
+    public PrivacyGate(BlockRuleProvider provider)
+    {
+        _getRules = provider.GetRules;
+    }
+
+    /// <summary>A fixed list of rules. Used by the tests.</summary>
     public PrivacyGate(List<BlockRule> rules)
     {
-        _rules = rules ?? new List<BlockRule>();
+        List<BlockRule> safeRules = rules ?? new List<BlockRule>();
+        _getRules = delegate { return safeRules; };
     }
 
     /// <summary>
@@ -63,7 +80,9 @@ public class PrivacyGate
             return GateVerdict.Drop("empty_title");
         }
 
-        foreach (BlockRule rule in _rules)
+        List<BlockRule> rules = _getRules();
+
+        foreach (BlockRule rule in rules)
         {
             if (rule.Matches(record.ExePath, record.WindowTitle))
             {

@@ -270,7 +270,9 @@ public class PrivacyGateTests
     public void WorksWithNoRulesAtAll()
     {
         // An empty list must not crash, and must not block everything either.
-        PrivacyGate gate = new PrivacyGate(null);
+        // The cast says which constructor we mean: there is also one that takes
+        // a BlockRuleProvider, and plain null could be either.
+        PrivacyGate gate = new PrivacyGate((List<BlockRule>)null);
 
         GateVerdict verdict = gate.Check(
             MakeRecord("C:\\app.exe", "A window"),

@@ -40,6 +40,10 @@
                         Padding="14,7"
                         Margin="0,0,8,0"
                         Click="OnPauseButtonClicked" />
+                <Button Content="Blocked apps"
+                        Padding="14,7"
+                        Margin="0,0,8,0"
+                        Click="OnBlockedAppsButtonClicked" />
                 <Button Content="Refresh"
                         Padding="14,7"
                         Click="OnRefreshButtonClicked" />

@@ -65,7 +65,7 @@ public class WebServer
     {
         _api = api;
         _logger = logger;
-        _files = new StaticFiles(logger);
+        _files = new StaticFiles(logger, api.GetTheme);
     }
 
     /// <summary>

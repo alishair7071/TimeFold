@@ -57,7 +57,7 @@ public class WebServerSecurityTests : IDisposable
             logger);
 
         ApiHandler api = new ApiHandler(
-            store, blockRules, provider, recording, _database, logger);
+            store, blockRules, provider, recording, settings, _database, logger);
 
         _server = new WebServer(api, logger);
 

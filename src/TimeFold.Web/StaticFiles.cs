@@ -14,11 +14,13 @@ namespace TimeFold.Web;
 public class StaticFiles
 {
     private readonly IAppLogger _logger;
+    private readonly Func<string> _getTheme;
     private readonly string _rootFolder;
 
-    public StaticFiles(IAppLogger logger)
+    public StaticFiles(IAppLogger logger, Func<string> getTheme)
     {
         _logger = logger;
+        _getTheme = getTheme;
 
         // AppContext.BaseDirectory is the folder the program is running from,
         // which is where the build puts wwwroot.
@@ -40,13 +42,49 @@ public class StaticFiles
             return;
         }
 
-        byte[] bytes = File.ReadAllBytes(fullPath);
+        byte[] bytes = ReadFileForSending(fullPath);
 
         context.Response.StatusCode = 200;
         context.Response.ContentType = GuessContentType(fullPath);
         context.Response.ContentLength64 = bytes.Length;
         context.Response.OutputStream.Write(bytes, 0, bytes.Length);
         context.Response.OutputStream.Close();
+    }
+
+    /// <summary>
+    /// Reads a file. The one exception to "send it exactly as it is" is the
+    /// page itself, which has the saved theme written into it.
+    ///
+    /// Why here and not in JavaScript: the browser draws the page before any
+    /// script has run. If the theme were applied by a script, everyone who
+    /// chose dark would see a flash of white on every load. Written into the
+    /// page by the server, it is right from the first paint.
+    ///
+    /// Why not remember it in the browser: the server picks a different random
+    /// port every time it starts, and a browser keeps its memory separately for
+    /// each port. A choice saved there would be forgotten at every restart.
+    /// </summary>
+    private byte[] ReadFileForSending(string fullPath)
+    {
+        string fileName = Path.GetFileName(fullPath);
+
+        if (!string.Equals(fileName, "index.html", StringComparison.OrdinalIgnoreCase))
+        {
+            return File.ReadAllBytes(fullPath);
+        }
+
+        string theme = _getTheme();
+
+        // Only ever one of two known words goes into the page, whatever the
+        // setting contains.
+        if (theme != "dark")
+        {
+            theme = "light";
+        }
+
+        string html = File.ReadAllText(fullPath);
+
+        return System.Text.Encoding.UTF8.GetBytes(html.Replace("__THEME__", theme));
     }
 
     /// <summary>

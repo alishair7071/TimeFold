@@ -6,6 +6,7 @@ using TimeFold.Core.Logging;
 using TimeFold.Core.Models;
 using TimeFold.Core.Privacy;
 using TimeFold.Core.Recording;
+using TimeFold.Core.Settings;
 using TimeFold.Core.Storage;
 using TimeFold.Core.SystemIntegration;
 using TimeFold.Core.Time;
@@ -29,6 +30,7 @@ public class ApiHandler
     private readonly IBlockRuleStore _blockRules;
     private readonly BlockRuleProvider _blockRuleProvider;
     private readonly RecordingService _recording;
+    private readonly SettingsService _settings;
     private readonly Database _database;
     private readonly IAppLogger _logger;
 
@@ -43,6 +45,7 @@ public class ApiHandler
         IBlockRuleStore blockRules,
         BlockRuleProvider blockRuleProvider,
         RecordingService recording,
+        SettingsService settings,
         Database database,
         IAppLogger logger)
     {
@@ -50,6 +53,7 @@ public class ApiHandler
         _blockRules = blockRules;
         _blockRuleProvider = blockRuleProvider;
         _recording = recording;
+        _settings = settings;
         _database = database;
         _logger = logger;
     }
@@ -74,6 +78,10 @@ public class ApiHandler
 
             case "/api/days":
                 SendJson(context, GetDaysWithRecords());
+                return;
+
+            case "/api/theme":
+                SendJson(context, SetTheme(ReadBody(context)));
                 return;
 
             case "/api/pause":
@@ -151,6 +159,7 @@ public class ApiHandler
         return new
         {
             paused = _recording.IsPaused,
+            theme = _settings.GetTheme(),
             savedThisSession = _recording.SavedCount,
             droppedThisSession = _recording.DroppedCount,
             totalRecords = _store.CountAllRecords(),
@@ -287,6 +296,26 @@ public class ApiHandler
         long minutes = (seconds % 3600) / 60;
 
         return hours + "h " + minutes.ToString("00") + "m";
+    }
+
+    // =======================================================================
+    //  Look
+    // =======================================================================
+
+    /// <summary>
+    /// The saved theme, for the server to build into the page before it is sent.
+    /// Always exactly "light" or "dark".
+    /// </summary>
+    public string GetTheme()
+    {
+        return _settings.GetTheme();
+    }
+
+    private object SetTheme(JsonElement body)
+    {
+        _settings.SetTheme(ReadString(body, "theme"));
+
+        return new { theme = _settings.GetTheme() };
     }
 
     // =======================================================================

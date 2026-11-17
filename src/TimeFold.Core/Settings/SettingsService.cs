@@ -16,6 +16,7 @@ public class SettingsService
     private const string KeyPaused = "recording.paused";
     private const string KeyDeviceId = "device.id";
     private const string KeyIdleAfterSeconds = "presence.idle_after_seconds";
+    private const string KeyTheme = "ui.theme";
 
     /// <summary>
     /// Five minutes. Short enough that a lunch break is not recorded as work,
@@ -78,6 +79,30 @@ public class SettingsService
     public void SetIdleAfterSeconds(int seconds)
     {
         SetValue(KeyIdleAfterSeconds, seconds.ToString());
+    }
+
+    // ------------------------------------------------------------------
+    // How the interface looks
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// "light" or "dark". Light unless you have chosen dark.
+    ///
+    /// It follows nothing about your Windows setting: this is your choice for
+    /// TimeFold, made with the button in the sidebar.
+    ///
+    /// Anything stored that is not exactly "dark" reads as light. The value ends
+    /// up inside the page the server sends, so it must only ever be one of two
+    /// known words - never whatever text happens to be in the database.
+    /// </summary>
+    public string GetTheme()
+    {
+        return GetValue(KeyTheme) == "dark" ? "dark" : "light";
+    }
+
+    public void SetTheme(string theme)
+    {
+        SetValue(KeyTheme, theme == "dark" ? "dark" : "light");
     }
 
     // ------------------------------------------------------------------

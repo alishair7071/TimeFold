@@ -769,6 +769,32 @@ $("pauseButton").onclick = async () => {
   toast(result.paused ? "Recording paused." : "Recording again.");
 };
 
+/* --------------------------------------------------------------------------
+   Light and dark.
+
+   The server already wrote the saved theme into the page before it was sent,
+   so the first paint is correct. This only handles the button: switch the
+   look straight away so it feels instant, then tell TimeFold to remember it.
+   -------------------------------------------------------------------------- */
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  $("themeButton").textContent = theme === "dark" ? "Light mode" : "Dark mode";
+}
+
+$("themeButton").onclick = async () => {
+  const current = document.documentElement.getAttribute("data-theme");
+  const next = current === "dark" ? "light" : "dark";
+
+  applyTheme(next);
+
+  try {
+    await api("/api/theme", { theme: next });
+  } catch (error) {
+    toast("The look changed, but TimeFold could not remember it.");
+  }
+};
+
 function showRecordingState(paused) {
   $("recordingLabel").textContent = paused ? "Paused" : "Recording";
   $("recordingPulse").classList.toggle("is-paused", paused);
@@ -822,6 +848,8 @@ setInterval(() => {
 /* ==========================================================================
    Start
    ========================================================================== */
+
+applyTheme(document.documentElement.getAttribute("data-theme"));
 
 $("dayPicker").value = state.day;
 $("deleteDayPicker").value = state.day;

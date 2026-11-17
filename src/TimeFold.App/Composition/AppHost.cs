@@ -96,7 +96,7 @@ public class AppHost
 
         // 10. The web interface, built but NOT started. See WebServer.
         ApiHandler api = new ApiHandler(
-            Store, BlockRules, BlockRuleProvider, Recording, Database, Logger);
+            Store, BlockRules, BlockRuleProvider, Recording, Settings, Database, Logger);
 
         Web = new WebServer(api, Logger);
 

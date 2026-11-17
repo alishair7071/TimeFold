@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\TimeFold.Core\TimeFold.Core.csproj" />
     <ProjectReference Include="..\..\src\TimeFold.Web\TimeFold.Web.csproj" />
+    <ProjectReference Include="..\..\src\TimeFold.App\TimeFold.App.csproj" />
   </ItemGroup>
 
 </Project>

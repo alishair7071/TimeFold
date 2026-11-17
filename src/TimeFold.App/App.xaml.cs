@@ -3,6 +3,7 @@ using System.Threading;
 using System.Windows;
 using TimeFold.App.Composition;
 using TimeFold.App.Tray;
+using TimeFold.Core.SystemIntegration;
 
 // This project uses both WPF (for the application shell) and Windows Forms
 // (for the tray icon). Both have a class called Application and a class called
@@ -29,9 +30,7 @@ namespace TimeFold.App;
 /// </summary>
 public partial class App : Application
 {
-    // Used to make sure only one copy of TimeFold runs at a time.
-    private Mutex _singleInstanceMutex;
-
+    private SingleInstance _singleInstance;
     private AppHost _host;
     private TrayIconController _tray;
 
@@ -39,14 +38,23 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Is a copy already running? If so, ask it to show itself and get
+        // out of the way. This is what makes double-clicking the desktop
+        // shortcut always do the right thing, whether TimeFold is running or
+        // not - instead of telling you to go and find a hidden tray icon.
         if (!TryClaimSingleInstance())
         {
-            MessageBox.Show(
-                "TimeFold is already running. Look for its icon in the system tray, " +
-                "near the clock.",
-                "TimeFold",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            if (!SingleInstance.AskTheRunningCopyToOpen())
+            {
+                // Could not reach it. Rare: the other copy quit in the moment
+                // between us failing to take the lock and ringing its doorbell.
+                MessageBox.Show(
+                    "TimeFold is already running. Look for its icon in the system tray, " +
+                    "near the clock.",
+                    "TimeFold",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
 
             Shutdown();
             return;
@@ -62,7 +70,11 @@ public partial class App : Application
             _tray = new TrayIconController(_host, OpenTheInterface, QuitApplication);
             _tray.Show();
 
-            OpenTheInterfaceIfThisIsTheFirstRun();
+            // From now on, a later copy ringing the doorbell opens the
+            // interface instead of starting a second recorder.
+            _singleInstance.StartListeningForOpenRequests(_host.Logger, OpenFromAnotherCopy);
+
+            OpenTheInterfaceUnlessWindowsStartedUs(e.Args);
         }
         catch (Exception error)
         {
@@ -111,25 +123,38 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// The very first time TimeFold runs, open the interface.
+    /// Called from the listening thread when another copy rings the doorbell.
     ///
-    /// Otherwise nothing at all appears to happen: Windows hides new tray icons
-    /// behind the arrow, so a new user reasonably concludes the app is broken.
-    /// Only once. After that it starts quietly, as intended.
+    /// Dispatcher.Invoke hands the work to the screen's thread. Starting a
+    /// browser and showing a message box are both things that must happen
+    /// there, and this arrives on a background thread.
     /// </summary>
-    private void OpenTheInterfaceIfThisIsTheFirstRun()
+    private void OpenFromAnotherCopy()
     {
-        const string settingKey = "firstrun.completed";
+        Dispatcher.Invoke(new Action(OpenTheInterface));
+    }
 
-        if (_host.Settings.GetValue(settingKey) == "true")
+    /// <summary>
+    /// Opens the interface, unless Windows started us at login.
+    ///
+    /// Starting TimeFold yourself - from the desktop shortcut or the Start
+    /// menu - means you want to look at it, so it opens. Windows starting it
+    /// automatically does not, and a browser window appearing uninvited every
+    /// morning would be maddening, so that case passes --silent.
+    /// </summary>
+    private void OpenTheInterfaceUnlessWindowsStartedUs(string[] arguments)
+    {
+        foreach (string argument in arguments)
         {
-            return;
+            if (string.Equals(argument, AutoStartService.SilentArgument,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _host.Logger.Info("Started by Windows at login - staying in the tray.");
+                return;
+            }
         }
 
         OpenTheInterface();
-
-        _host.Settings.SetValue(settingKey, "true");
-        _host.Logger.Info("First run - opened the interface so the app is visible.");
     }
 
     private void QuitApplication()
@@ -149,9 +174,9 @@ public partial class App : Application
             _host.Stop();
         }
 
-        if (_singleInstanceMutex != null)
+        if (_singleInstance != null)
         {
-            _singleInstanceMutex.Dispose();
+            _singleInstance.Dispose();
         }
 
         base.OnExit(e);
@@ -163,8 +188,8 @@ public partial class App : Application
     /// </summary>
     private bool TryClaimSingleInstance()
     {
-        bool createdNew;
-        _singleInstanceMutex = new Mutex(true, "TimeFold.SingleInstance", out createdNew);
-        return createdNew;
+        _singleInstance = new SingleInstance();
+
+        return _singleInstance.TryClaim();
     }
 }

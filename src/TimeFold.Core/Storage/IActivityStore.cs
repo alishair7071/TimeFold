@@ -37,4 +37,12 @@ public interface IActivityStore
 
     /// <summary>When the newest record was saved, or null if there are none.</summary>
     long? GetLastSavedAtUtcMs();
+
+    /// <summary>
+    /// Every distinct program that appears anywhere in your history.
+    ///
+    /// Used by the blocked apps screen, so that something you clearly use shows
+    /// up in the list even if it has no Start menu shortcut.
+    /// </summary>
+    List<SystemIntegration.InstalledApp> GetAppsSeenBefore();
 }

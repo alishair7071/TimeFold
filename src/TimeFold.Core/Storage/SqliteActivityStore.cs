@@ -155,6 +155,43 @@ public class SqliteActivityStore : IActivityStore
         return record;
     }
 
+    public List<SystemIntegration.InstalledApp> GetAppsSeenBefore()
+    {
+        List<SystemIntegration.InstalledApp> apps = new List<SystemIntegration.InstalledApp>();
+
+        using (SqliteConnection connection = _database.OpenConnection())
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            // One row per program, with the most recent name we saw for it.
+            // MAX(started_at_utc_ms) also puts the apps you used most recently
+            // at the top, which is almost always what you are looking for.
+            command.CommandText = @"
+                SELECT exe_path, app_name, MAX(started_at_utc_ms)
+                FROM activity_records
+                WHERE exe_path IS NOT NULL
+                GROUP BY exe_path
+                ORDER BY MAX(started_at_utc_ms) DESC;
+            ";
+
+            using (SqliteDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    SystemIntegration.InstalledApp app = new SystemIntegration.InstalledApp();
+
+                    app.ExePath = reader.GetString(0);
+                    app.DisplayName = reader.IsDBNull(1) ? null : reader.GetString(1);
+                    app.ExeFileName = Path.GetFileName(app.ExePath);
+                    app.FoundIn = "Used recently";
+
+                    apps.Add(app);
+                }
+            }
+        }
+
+        return apps;
+    }
+
     /// <summary>SQLite needs DBNull, not a C# null.</summary>
     private static object ValueOrNull(object value)
     {

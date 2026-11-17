@@ -57,4 +57,55 @@ internal static class NativeMethods
     /// would fail on protected system programs and would be more than we need.
     /// </summary>
     internal const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+    // ---- away from the computer -------------------------------------------
+
+    /// <summary>
+    /// Tells us when you last touched the keyboard or mouse.
+    ///
+    /// Windows does not offer an "is the user away?" question, only "when was
+    /// the last input?". Working out what counts as away is our job, in
+    /// IdleDetector.
+    ///
+    /// Note it reports the LAST INPUT, not what the input was. There is no way
+    /// to learn which key was pressed from this, and that is deliberate - a
+    /// function that could would be a keylogger.
+    /// </summary>
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+
+    /// <summary>
+    /// The answer from GetLastInputInfo.
+    ///
+    /// cbSize must be set to the size of this structure before calling, which
+    /// is how Windows checks that both sides agree on the layout. TimeOfLastInput
+    /// is milliseconds since Windows started, NOT a clock time.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct LASTINPUTINFO
+    {
+        public uint cbSize;
+        public uint TimeOfLastInput;
+    }
+
+    /// <summary>
+    /// Opens the desktop that is receiving input right now.
+    ///
+    /// This is how we tell whether the screen is locked. When you lock Windows,
+    /// it switches to a separate secure desktop that normal programs are not
+    /// allowed to open. So this call failing is the signal: locked.
+    ///
+    /// Returns a handle that must be closed with CloseDesktop.
+    /// </summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint desiredAccess);
+
+    /// <summary>Closes a handle from OpenInputDesktop. Must always be called, or we leak.</summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool CloseDesktop(IntPtr desktopHandle);
+
+    /// <summary>The smallest desktop permission that is still enough to tell us it opened.</summary>
+    internal const uint DESKTOP_SWITCHDESKTOP = 0x0100;
 }

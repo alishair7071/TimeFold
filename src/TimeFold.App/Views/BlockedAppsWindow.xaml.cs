@@ -274,6 +274,47 @@ public partial class BlockedAppsWindow : Window
         _host.BlockRuleProvider.Reload();
 
         StatusText.Text = exeFileName + " is blocked. Nothing from it will be recorded from now on.";
+
+        OfferToDeletePastHistory(exeFileName);
+    }
+
+    /// <summary>
+    /// Blocking only stops NEW records. Someone who has just decided they do
+    /// not want an app in their history would be surprised to find the old
+    /// entries still sitting there - so we ask, rather than assume either way.
+    ///
+    /// We ask rather than delete silently because the opposite surprise is
+    /// worse: history disappearing that you did not mean to lose.
+    /// </summary>
+    private void OfferToDeletePastHistory(string exeFileName)
+    {
+        long existing = _host.Store.CountRecordsForApp(exeFileName);
+
+        if (existing == 0)
+        {
+            return;
+        }
+
+        MessageBoxResult answer = MessageBox.Show(
+            this,
+            exeFileName + " is now blocked, so nothing new will be recorded.\n\n" +
+            "There are still " + existing + " record(s) from before. Delete those too?\n\n" +
+            "This cannot be undone.",
+            "TimeFold",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (answer != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        int deleted = _host.Store.DeleteRecordsForApp(exeFileName);
+
+        _host.Logger.Info("Deleted " + deleted + " past records for a newly blocked app.");
+
+        StatusText.Text =
+            exeFileName + " is blocked, and " + deleted + " past record(s) were deleted.";
     }
 
     private void UnblockApp(string exeFileName)

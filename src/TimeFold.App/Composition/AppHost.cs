@@ -69,9 +69,16 @@ public class AppHost
         Logger.Info("Privacy gate ready with " + BlockRuleProvider.GetRules().Count +
                     " active block rules.");
 
-        // 7. The watcher.
+        // 7. The watchers.
+        //    PresenceReader answers "are you actually at the computer?", so that
+        //    walking away with a window open is recorded as being away rather
+        //    than as hours of work.
         ForegroundWindowReader reader = new ForegroundWindowReader();
-        WindowWatcher watcher = new WindowWatcher(reader, Logger, deviceId);
+
+        PresenceReader presence = new PresenceReader();
+        presence.IdleAfterSeconds = Settings.GetIdleAfterSeconds();
+
+        WindowWatcher watcher = new WindowWatcher(reader, presence, Logger, deviceId);
 
         // 8. Join watcher + gate + store together.
         Recording = new RecordingService(watcher, gate, Store, Settings, Logger);

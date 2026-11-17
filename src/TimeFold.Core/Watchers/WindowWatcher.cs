@@ -50,6 +50,7 @@ public class WindowWatcher
     private const int SaveUnfinishedEverySeconds = 30;
 
     private readonly ForegroundWindowReader _reader;
+    private readonly PresenceReader _presence;
     private readonly IAppLogger _logger;
     private readonly string _deviceId;
 
@@ -66,9 +67,14 @@ public class WindowWatcher
     /// <summary>Raised when a record is finished, or is being saved while still open.</summary>
     public event Action<ActivityRecord> RecordReady;
 
-    public WindowWatcher(ForegroundWindowReader reader, IAppLogger logger, string deviceId)
+    public WindowWatcher(
+        ForegroundWindowReader reader,
+        PresenceReader presence,
+        IAppLogger logger,
+        string deviceId)
     {
         _reader = reader;
+        _presence = presence;
         _logger = logger;
         _deviceId = deviceId;
     }
@@ -140,9 +146,25 @@ public class WindowWatcher
     private void CheckActiveWindow()
     {
         long now = AppClock.NowUtcMs();
+
+        // Are you actually here? A window stays in the foreground whether you
+        // are at the desk or not, so this has to be asked first. Without it,
+        // going to lunch with Chrome open would be recorded as two hours of
+        // using Chrome.
+        PresenceState presence = _presence.Read();
+
+        if (presence != PresenceState.Active)
+        {
+            TrackAbsence(presence, now);
+            return;
+        }
+
+        // You are back. Finish any away entry before looking at the window.
+        CloseCurrentRecord(now);
+
         ForegroundWindowInfo info = _reader.Read();
 
-        // Nothing readable, for example the screen is locked.
+        // Nothing readable, for example a secure screen we may not look at.
         if (!info.IsValid)
         {
             CloseCurrentRecord(now);
@@ -175,6 +197,77 @@ public class WindowWatcher
         CloseCurrentRecord(now);
         StartNewRecord(info, cleanTitle, key, now);
     }
+
+    /// <summary>
+    /// Records that you were away, as its own kind of entry.
+    ///
+    /// The time is not thrown away, for two reasons. "Away from 1pm to 2pm" is
+    /// itself worth remembering - it is part of answering what you were doing
+    /// that day. And a gap with no explanation looks like TimeFold stopped
+    /// working, which is exactly the doubt we do not want you to have.
+    /// </summary>
+    private void TrackAbsence(PresenceState presence, long now)
+    {
+        string kind = presence == PresenceState.Locked ? RecordKinds.Lock : RecordKinds.Idle;
+        string key = "absence|" + kind;
+
+        // Still away - just make the existing entry longer.
+        if (_currentRecord != null && key == _currentKey)
+        {
+            _currentRecord.EndedAtUtcMs = now;
+
+            bool timeToSaveAgain =
+                now - _currentLastSavedAtUtcMs >= SaveUnfinishedEverySeconds * 1000;
+
+            if (timeToSaveAgain)
+            {
+                _currentLastSavedAtUtcMs = now;
+                RaiseRecordReady(_currentRecord);
+            }
+
+            return;
+        }
+
+        // Just became away, or changed from idle to locked.
+        CloseCurrentRecord(now);
+
+        ActivityRecord record = new ActivityRecord();
+
+        record.Kind = kind;
+        record.Source = "presence-watcher";
+        record.StartedAtUtcMs = now;
+        record.EndedAtUtcMs = now;
+        record.TimeZoneOffsetMinutes = AppClock.CurrentOffsetMinutes();
+
+        // No app, no path, no title. We are deliberately not recording what was
+        // on screen while you were away - least of all while it was locked.
+        record.AppName = presence == PresenceState.Locked ? "Screen locked" : "Away";
+        record.ExePath = AbsenceExePath;
+        record.WindowTitle = record.AppName;
+
+        record.Id = RecordId.Create(
+            _deviceId,
+            record.Kind,
+            record.Source,
+            record.StartedAtUtcMs,
+            record.ExePath,
+            record.WindowTitle);
+
+        _currentRecord = record;
+        _currentKey = key;
+        _currentLastSavedAtUtcMs = now;
+    }
+
+    /// <summary>
+    /// A stand-in path for away entries.
+    ///
+    /// The privacy gate drops any record with no program path, because not
+    /// knowing which program a window belongs to means we cannot check it
+    /// against your block rules. An away entry genuinely has no program, so it
+    /// needs something here - and it must be something no block rule could
+    /// accidentally match.
+    /// </summary>
+    private const string AbsenceExePath = "timefold:absence";
 
     private void StartNewRecord(ForegroundWindowInfo info, string cleanTitle, string key, long now)
     {

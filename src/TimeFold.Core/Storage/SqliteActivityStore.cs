@@ -192,6 +192,119 @@ public class SqliteActivityStore : IActivityStore
         return apps;
     }
 
+    public List<ActivityRecord> GetAllRecords()
+    {
+        List<ActivityRecord> records = new List<ActivityRecord>();
+
+        using (SqliteConnection connection = _database.OpenConnection())
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = @"
+                SELECT id, kind, source,
+                       started_at_utc_ms, ended_at_utc_ms, tz_offset_minutes,
+                       app_name, exe_path, window_title, details_json,
+                       saved_at_utc_ms, updated_at_utc_ms, row_version
+                FROM activity_records
+                ORDER BY started_at_utc_ms ASC;
+            ";
+
+            using (SqliteDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    records.Add(ReadRecord(reader));
+                }
+            }
+        }
+
+        return records;
+    }
+
+    // ---- deleting ----------------------------------------------------------
+
+    public int DeleteRecord(string id)
+    {
+        return RunDelete(
+            "DELETE FROM activity_records WHERE id = $id;",
+            delegate (SqliteCommand command)
+            {
+                command.Parameters.AddWithValue("$id", id);
+            });
+    }
+
+    public int DeleteRecordsBetween(long fromUtcMs, long toUtcMs)
+    {
+        return RunDelete(
+            @"DELETE FROM activity_records
+              WHERE started_at_utc_ms >= $from AND started_at_utc_ms < $to;",
+            delegate (SqliteCommand command)
+            {
+                command.Parameters.AddWithValue("$from", fromUtcMs);
+                command.Parameters.AddWithValue("$to", toUtcMs);
+            });
+    }
+
+    public int DeleteRecordsForApp(string exeFileName)
+    {
+        return RunDelete(
+            AppMatchSql("DELETE FROM activity_records"),
+            delegate (SqliteCommand command)
+            {
+                command.Parameters.AddWithValue("$suffix", "%\\" + exeFileName);
+                command.Parameters.AddWithValue("$exact", exeFileName);
+            });
+    }
+
+    public long CountRecordsForApp(string exeFileName)
+    {
+        using (SqliteConnection connection = _database.OpenConnection())
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = AppMatchSql("SELECT COUNT(*) FROM activity_records");
+            command.Parameters.AddWithValue("$suffix", "%\\" + exeFileName);
+            command.Parameters.AddWithValue("$exact", exeFileName);
+
+            object result = command.ExecuteScalar();
+            return result == null ? 0 : Convert.ToInt64(result);
+        }
+    }
+
+    public int DeleteAllRecords()
+    {
+        return RunDelete("DELETE FROM activity_records;", null);
+    }
+
+    /// <summary>
+    /// Finds records belonging to one program file name.
+    ///
+    /// exe_path holds a full path like C:\Program Files\Chrome\chrome.exe, so we
+    /// match on the end of it. LIKE in SQLite ignores upper and lower case for
+    /// plain text, which is what we want - Windows does not care about case in
+    /// file names either.
+    ///
+    /// The second half covers the odd case of a bare file name with no folder.
+    /// </summary>
+    private static string AppMatchSql(string prefix)
+    {
+        return prefix + " WHERE exe_path LIKE $suffix OR exe_path = $exact;";
+    }
+
+    private int RunDelete(string sql, Action<SqliteCommand> addParameters)
+    {
+        using (SqliteConnection connection = _database.OpenConnection())
+        using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = sql;
+
+            if (addParameters != null)
+            {
+                addParameters(command);
+            }
+
+            return command.ExecuteNonQuery();
+        }
+    }
+
     /// <summary>SQLite needs DBNull, not a C# null.</summary>
     private static object ValueOrNull(object value)
     {

@@ -13,6 +13,14 @@ namespace TimeFold.App.Views;
 /// </summary>
 public class ActivityRow
 {
+    /// <summary>
+    /// The record's id and program file, carried so that a right-click on a row
+    /// can delete or block exactly the thing you are looking at. Neither is
+    /// shown on screen.
+    /// </summary>
+    public string RecordId { get; set; }
+    public string ExeFileName { get; set; }
+
     public string TimeRange { get; set; }
     public string Duration { get; set; }
     public string AppName { get; set; }
@@ -21,6 +29,11 @@ public class ActivityRow
     public static ActivityRow FromRecord(ActivityRecord record)
     {
         ActivityRow row = new ActivityRow();
+
+        row.RecordId = record.Id;
+        row.ExeFileName = string.IsNullOrEmpty(record.ExePath)
+            ? null
+            : System.IO.Path.GetFileName(record.ExePath);
 
         DateTime startLocal = AppClock.ToLocalTime(
             record.StartedAtUtcMs,

@@ -34,9 +34,10 @@ A Windows app that quietly records what you do on your computer, so that months 
 | 1 | How we notice a change | Poll every 1 second | **DECIDED — keep polling.** A Windows event hook uses less power but can be dropped silently, leaving a gap in your history with no error. A ticking timer can be seen. |
 | 1 | First run | Open the window once | **DECIDED — open once.** Windows hides new tray icons, so otherwise nothing appears to happen. |
 | 1 | TimeFold recording itself | Block it | **DECIDED — blocked.** Reading your own timeline should not create records about reading your own timeline. |
-| 2 | Block sensitive apps by | Program file path | |
-| 2 | Encrypt database | No, not yet | |
-| 2 | How long to keep data | Forever (text is tiny) | |
+| 2 | Block sensitive apps by | Program file path | **DECIDED — all three.** Program name is the main one, and the Blocked apps screen lists your installed apps so you tick instead of typing. Folder and window-title rules are on an Advanced tab. |
+| 2 | Encrypt database | No, not yet | **DECIDED — no encryption yet.** Your Windows account already keeps other users out, and an encrypted file could not be opened by hand to check that blocking works. Revisit at Phase 5, when screenshots arrive. |
+| 2 | How long to keep data | Forever (text is tiny) | **DECIDED — keep forever.** Around 1–5 MB a month, so ten years fits in under 600 MB. Deleting is manual and yours to choose. Screenshots get a hard limit in Phase 5. |
+| 2 | Being away from the computer | Record it, do not hide it | **DECIDED — record as its own kind of entry.** 5 minutes without keyboard or mouse counts as away. A locked screen is recorded as locked. Neither records what was on screen. |
 | 3 | Search engine | SQLite FTS5 | |
 | 3 | Timeline look | Grouped list | |
 | 4 | Browser tracking method | Read browser history file | |
@@ -217,7 +218,9 @@ updates, and title matching catches the case where a normal app shows something 
 important part is the rule: **if we are not sure, record nothing.** It is better to lose one boring
 entry than to save one private one.
 
-`Your choice: ______as you wish______________`
+`Your choice: ` **All three, program name first** — and rather than typing file names, the
+Blocked apps screen lists the apps on this computer so you tick one to block it. Folder and
+window-title rules live on an Advanced tab for the cases a list of apps cannot express.
 
 ---
 
@@ -238,7 +241,7 @@ Encrypting it now makes debugging harder for very little real gain.
 **Add SQLCipher when:** you enable BitLocker-free laptop use, share the PC, or start Phase 5
 (screenshots), whichever comes first. Screenshots are far more sensitive than text.
 
-`Your choice: ____________________`
+`Your choice: ______no encryption yet______________`
 
 ---
 
@@ -257,7 +260,7 @@ month, so ten years fits in under 600 MB. There is no reason to throw away the t
 exists to keep. Screenshots are the opposite (gigabytes per month), so they get a hard limit when
 they arrive.
 
-`Your choice: ____________________`
+`Your choice: ______add option to choose the user if user want 6 months or 1 month or one year it should work for each user and aslo there should be two different options for screen shots and for text, but still we are working with just text so still just implement for the text When we implement the screenshot, then we will also implement this option for the screenshots in the next phases. ______________`
 
 ---
 

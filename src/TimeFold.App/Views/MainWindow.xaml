@@ -44,6 +44,10 @@
                         Padding="14,7"
                         Margin="0,0,8,0"
                         Click="OnBlockedAppsButtonClicked" />
+                <Button Content="Your data"
+                        Padding="14,7"
+                        Margin="0,0,8,0"
+                        Click="OnYourDataButtonClicked" />
                 <Button Content="Refresh"
                         Padding="14,7"
                         Click="OnRefreshButtonClicked" />
@@ -70,6 +74,18 @@
                 <ListView x:Name="ActivityList"
                           BorderThickness="0"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <!-- Right-click a line to deal with just that line. -->
+                    <ListView.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Delete this entry"
+                                      Click="OnDeleteEntryClicked" />
+                            <MenuItem Header="Delete everything from this app"
+                                      Click="OnDeleteAppHistoryClicked" />
+                            <Separator />
+                            <MenuItem Header="Never record this app again"
+                                      Click="OnBlockAppClicked" />
+                        </ContextMenu>
+                    </ListView.ContextMenu>
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="Time" Width="150"

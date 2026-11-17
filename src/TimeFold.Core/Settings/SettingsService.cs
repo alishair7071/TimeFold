@@ -15,6 +15,13 @@ public class SettingsService
 {
     private const string KeyPaused = "recording.paused";
     private const string KeyDeviceId = "device.id";
+    private const string KeyIdleAfterSeconds = "presence.idle_after_seconds";
+
+    /// <summary>
+    /// Five minutes. Short enough that a lunch break is not recorded as work,
+    /// long enough that reading a long page is not recorded as being away.
+    /// </summary>
+    private const int DefaultIdleAfterSeconds = 300;
 
     private readonly Database _database;
 
@@ -36,6 +43,41 @@ public class SettingsService
     public void SetPaused(bool paused)
     {
         SetValue(KeyPaused, paused ? "true" : "false");
+    }
+
+    // ------------------------------------------------------------------
+    // Being away from the computer
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// How long without keyboard or mouse counts as being away.
+    ///
+    /// A nonsense or missing value falls back to the default rather than
+    /// failing. The two guards matter: zero would mark you away constantly,
+    /// and a huge number would mean never.
+    /// </summary>
+    public int GetIdleAfterSeconds()
+    {
+        string stored = GetValue(KeyIdleAfterSeconds);
+
+        int seconds;
+
+        if (!int.TryParse(stored, out seconds))
+        {
+            return DefaultIdleAfterSeconds;
+        }
+
+        if (seconds < 30 || seconds > 60 * 60)
+        {
+            return DefaultIdleAfterSeconds;
+        }
+
+        return seconds;
+    }
+
+    public void SetIdleAfterSeconds(int seconds)
+    {
+        SetValue(KeyIdleAfterSeconds, seconds.ToString());
     }
 
     // ------------------------------------------------------------------

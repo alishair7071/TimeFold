@@ -45,4 +45,31 @@ public interface IActivityStore
     /// up in the list even if it has no Start menu shortcut.
     /// </summary>
     List<SystemIntegration.InstalledApp> GetAppsSeenBefore();
+
+    /// <summary>All records, oldest first. Used when exporting everything.</summary>
+    List<ActivityRecord> GetAllRecords();
+
+    // ---- deleting ----------------------------------------------------------
+    //
+    // Every delete returns how many rows went, so the screen can tell you what
+    // actually happened rather than just saying "done". Deleting is the one
+    // thing in TimeFold that cannot be undone, so it should never be vague.
+
+    /// <summary>Deletes one record.</summary>
+    int DeleteRecord(string id);
+
+    /// <summary>Deletes everything that started inside this time range.</summary>
+    int DeleteRecordsBetween(long fromUtcMs, long toUtcMs);
+
+    /// <summary>
+    /// Deletes every record belonging to one program, for all time.
+    /// Matched on the program file name, the same way block rules match.
+    /// </summary>
+    int DeleteRecordsForApp(string exeFileName);
+
+    /// <summary>How many records belong to one program. Asked before offering to delete them.</summary>
+    long CountRecordsForApp(string exeFileName);
+
+    /// <summary>Deletes your entire history. Settings and block rules are kept.</summary>
+    int DeleteAllRecords();
 }

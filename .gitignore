@@ -1,0 +1,19 @@
+# Build output
+bin/
+obj/
+publish/
+publish-singlefile/
+*.user
+
+# Installer output
+installer/output/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+
+# Local test data (never commit real activity data)
+*.db
+*.db-wal
+*.db-shm
+logs/

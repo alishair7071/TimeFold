@@ -1,0 +1,108 @@
+using TimeFold.Core.Logging;
+using TimeFold.Core.Privacy;
+using TimeFold.Core.Recording;
+using TimeFold.Core.Settings;
+using TimeFold.Core.Storage;
+using TimeFold.Core.Storage.Migrations;
+using TimeFold.Core.SystemIntegration;
+using TimeFold.Core.Watchers;
+using TimeFold.Core.Watchers.Native;
+
+namespace TimeFold.App.Composition;
+
+/// <summary>
+/// The one place where every part of TimeFold is created and joined together.
+///
+/// This is called a "composition root". Everywhere else, a class is handed the
+/// things it needs; it never creates them itself. That keeps each class easy to
+/// read on its own, and makes the whole startup sequence visible in one file.
+///
+/// Read Start() from top to bottom to understand exactly how TimeFold boots.
+/// </summary>
+public class AppHost
+{
+    public IAppLogger Logger { get; private set; }
+    public Database Database { get; private set; }
+    public IActivityStore Store { get; private set; }
+    public SettingsService Settings { get; private set; }
+    public RecordingService Recording { get; private set; }
+    public AutoStartService AutoStart { get; private set; }
+
+    public void Start()
+    {
+        // 1. Make sure the data folders exist.
+        AppPaths.EnsureFoldersExist();
+
+        // 2. Logging first, so everything after this can report problems.
+        Logger = new FileLogger(AppPaths.LogsFolder);
+        Logger.Info("---- TimeFold starting ----");
+
+        // 3. Open the database and bring its structure up to date.
+        Database = new Database(AppPaths.DatabaseFile);
+        Database.Prepare();
+
+        MigrationRunner migrations = new MigrationRunner(Database, Logger);
+        migrations.RunPendingMigrations();
+
+        // 4. Storage and settings.
+        Store = new SqliteActivityStore(Database);
+        Settings = new SettingsService(Database);
+
+        string deviceId = Settings.GetOrCreateDeviceId();
+
+        // 5. The privacy gate. Built before the watcher on purpose - nothing
+        //    should ever be watched without a gate ready to filter it.
+        PrivacyGate gate = new PrivacyGate(DefaultBlockList.Create());
+
+        // 6. The watcher.
+        ForegroundWindowReader reader = new ForegroundWindowReader();
+        WindowWatcher watcher = new WindowWatcher(reader, Logger, deviceId);
+
+        // 7. Join watcher + gate + store together.
+        Recording = new RecordingService(watcher, gate, Store, Settings, Logger);
+
+        // 8. Windows startup entry.
+        AutoStart = new AutoStartService(Logger);
+        LeaveAutoStartToTheUser();
+
+        // 9. Begin recording.
+        Recording.Start();
+
+        Logger.Info("TimeFold started. Database: " + Database.FilePath);
+    }
+
+    public void Stop()
+    {
+        try
+        {
+            if (Recording != null)
+            {
+                Recording.Stop();
+            }
+
+            if (Logger != null)
+            {
+                Logger.Info("---- TimeFold stopped ----");
+            }
+        }
+        catch
+        {
+            // Shutting down must never throw.
+        }
+    }
+
+    /// <summary>
+    /// TimeFold does NOT add itself to Windows startup by itself.
+    ///
+    /// Starting silently on every boot is something the user should switch on
+    /// deliberately, not something an app decides for them. The AutoStart
+    /// service stays available here so a settings switch can call
+    /// AutoStart.Enable(...) / AutoStart.Disable() later (Phase 2).
+    ///
+    /// Until then, TimeFold runs only when you open it from the shortcut.
+    /// </summary>
+    private void LeaveAutoStartToTheUser()
+    {
+        // Deliberately does nothing.
+    }
+}

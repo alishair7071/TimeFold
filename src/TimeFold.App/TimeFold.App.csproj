@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    TimeFold.App
+    ============
+    The visible part: the tray icon and the window.
+    All logic lives in TimeFold.Core. This project only shows things and
+    passes button clicks along.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>TimeFold.App</RootNamespace>
+    <AssemblyName>TimeFold</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <!-- WPF gives us the window. -->
+    <UseWPF>true</UseWPF>
+
+    <!-- Windows Forms is included only for its tray icon (NotifyIcon),
+         which WPF does not have a built-in replacement for. -->
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <ApplicationIcon>Assets\timefold.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TimeFold.Core\TimeFold.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\timefold.ico" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    TimeFold.Core
+    =============
+    All the logic of TimeFold lives here: watching, privacy, storage, settings.
+    This project knows NOTHING about windows, buttons or screens.
+
+    Why separate from the app?
+    Because the UI can be replaced later (or a second UI added) without touching
+    any of this. The compiler enforces it: Core cannot reference the App project.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>TimeFold.Core</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The SQLite database driver. This is the only database dependency. -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+  </ItemGroup>
+
+</Project>

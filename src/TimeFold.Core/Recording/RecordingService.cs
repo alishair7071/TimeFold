@@ -28,6 +28,20 @@ public class RecordingService
     private long _savedCount;
     private long _droppedCount;
 
+    // ---- stopping the log from repeating itself ----------------------------
+    //
+    // An unfinished record is re-offered every 30 seconds. If it is a blocked
+    // one - say you left a password manager open - the gate drops it every 30
+    // seconds and we used to write a log line every single time. Leave it open
+    // all day and that is about 2,880 identical lines burying everything that
+    // actually matters.
+    //
+    // So we log a drop once, then stay quiet while it is the same record being
+    // dropped for the same reason, and write a single summary line when it
+    // finally changes. Nothing is hidden - the count is still reported.
+    private string _lastDropKey;
+    private long _repeatedDropCount;
+
     /// <summary>Raised after something is saved, so the screen can refresh.</summary>
     public event Action RecordSaved;
 
@@ -82,6 +96,53 @@ public class RecordingService
     public void Stop()
     {
         _watcher.Stop();
+        FlushRepeatedDropSummary();
+    }
+
+    /// <summary>
+    /// Writes one log line for a dropped record, but stays quiet if it is the
+    /// same record being dropped for the same reason as last time.
+    ///
+    /// The log line contains the reason CODE only. Never the window title or
+    /// the file path - otherwise the private data we just refused to save would
+    /// end up in the log file instead, which is the same leak by another route.
+    /// </summary>
+    private void LogDropWithoutRepeating(ActivityRecord record, string reasonCode)
+    {
+        // The record id is a hash, not readable data, so it is safe to use here
+        // as a way of telling "the same thing again" from "something new".
+        string recordId = record == null ? "none" : record.Id;
+        string dropKey = recordId + "|" + reasonCode;
+
+        if (dropKey == _lastDropKey)
+        {
+            _repeatedDropCount++;
+            return;
+        }
+
+        FlushRepeatedDropSummary();
+
+        _lastDropKey = dropKey;
+        _repeatedDropCount = 0;
+
+        _logger.Info("Record dropped by privacy gate. Reason: " + reasonCode);
+    }
+
+    /// <summary>
+    /// If we have been quietly skipping repeats, write one line saying how many
+    /// there were, then start counting again.
+    /// </summary>
+    private void FlushRepeatedDropSummary()
+    {
+        if (_repeatedDropCount > 0)
+        {
+            _logger.Info(
+                "The same record was dropped " + _repeatedDropCount +
+                " more time(s) for the same reason.");
+        }
+
+        _lastDropKey = null;
+        _repeatedDropCount = 0;
     }
 
     /// <summary>
@@ -120,13 +181,13 @@ public class RecordingService
             if (!verdict.IsAllowed)
             {
                 _droppedCount++;
-
-                // We log the reason code only. Never the title or the path -
-                // otherwise the private data we just refused to save ends up
-                // in the log file instead.
-                _logger.Info("Record dropped by privacy gate. Reason: " + verdict.ReasonCode);
+                LogDropWithoutRepeating(record, verdict.ReasonCode);
                 return;
             }
+
+            // Something different is happening now, so if we were staying quiet
+            // about a repeating drop, say how many times it happened.
+            FlushRepeatedDropSummary();
 
             _store.Save(record);
             _savedCount++;

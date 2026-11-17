@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- Deliberately off, like the other projects, to keep the code simple to read. -->
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TimeFold.Core\TimeFold.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The web page itself. Copied next to the program when it is built, so the
+      server can read it from disk at runtime.
+    -->
+    <Content Include="wwwroot\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

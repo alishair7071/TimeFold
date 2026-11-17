@@ -7,6 +7,7 @@ using TimeFold.Core.Storage.Migrations;
 using TimeFold.Core.SystemIntegration;
 using TimeFold.Core.Watchers;
 using TimeFold.Core.Watchers.Native;
+using TimeFold.Web;
 
 namespace TimeFold.App.Composition;
 
@@ -29,6 +30,12 @@ public class AppHost
     public BlockRuleProvider BlockRuleProvider { get; private set; }
     public RecordingService Recording { get; private set; }
     public AutoStartService AutoStart { get; private set; }
+
+    /// <summary>
+    /// The web interface. Not started here - it starts the first time you ask
+    /// to open TimeFold, so that a port is never opened unless you want one.
+    /// </summary>
+    public WebServer Web { get; private set; }
 
     public void Start()
     {
@@ -87,7 +94,13 @@ public class AppHost
         AutoStart = new AutoStartService(Logger);
         LeaveAutoStartToTheUser();
 
-        // 10. Begin recording.
+        // 10. The web interface, built but NOT started. See WebServer.
+        ApiHandler api = new ApiHandler(
+            Store, BlockRules, BlockRuleProvider, Recording, Database, Logger);
+
+        Web = new WebServer(api, Logger);
+
+        // 11. Begin recording.
         Recording.Start();
 
         Logger.Info("TimeFold started. Database: " + Database.FilePath);
@@ -97,6 +110,11 @@ public class AppHost
     {
         try
         {
+            if (Web != null)
+            {
+                Web.Stop();
+            }
+
             if (Recording != null)
             {
                 Recording.Stop();

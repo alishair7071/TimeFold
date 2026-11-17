@@ -1,11 +1,11 @@
+using System.Diagnostics;
 using System.Threading;
 using System.Windows;
 using TimeFold.App.Composition;
 using TimeFold.App.Tray;
-using TimeFold.App.Views;
 
-// This project uses both WPF (for the window) and Windows Forms (for the tray
-// icon). Both of them have a class called Application and a class called
+// This project uses both WPF (for the application shell) and Windows Forms
+// (for the tray icon). Both have a class called Application and a class called
 // MessageBox, so C# cannot tell which one we mean.
 // These two lines say: in this file, always mean the WPF one.
 using Application = System.Windows.Application;
@@ -16,9 +16,16 @@ namespace TimeFold.App;
 /// <summary>
 /// The entry point of the program.
 ///
-/// Note what this does NOT do: it does not open a window. TimeFold starts
-/// invisibly, as a tray icon. You open the window when you want to look at
-/// your history.
+/// TimeFold has no windows of its own any more. It is a tray icon that records,
+/// plus a web interface it opens in your browser when you ask for it.
+///
+/// Why a browser rather than a window: the interface is now ordinary HTML and
+/// CSS, which is far easier to make look like something from this decade, and
+/// is completely separate from Windows. The recorder is the Windows part; the
+/// interface is a web page.
+///
+/// The server does not start with the app. It starts the first time you choose
+/// Open. If you never open the interface, TimeFold never opens a port.
 /// </summary>
 public partial class App : Application
 {
@@ -27,7 +34,6 @@ public partial class App : Application
 
     private AppHost _host;
     private TrayIconController _tray;
-    private MainWindow _mainWindow;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -52,14 +58,11 @@ public partial class App : Application
             _host = new AppHost();
             _host.Start();
 
-            // The window is created now but stays hidden until you open it.
-            _mainWindow = new MainWindow(_host);
-
-            // The tray icon is the app's real home.
-            _tray = new TrayIconController(_host, ShowMainWindow, QuitApplication);
+            // The tray icon is the app's home.
+            _tray = new TrayIconController(_host, OpenTheInterface, QuitApplication);
             _tray.Show();
 
-            ShowWindowIfThisIsTheFirstRun();
+            OpenTheInterfaceIfThisIsTheFirstRun();
         }
         catch (Exception error)
         {
@@ -74,16 +77,47 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// The very first time TimeFold runs, open the window.
+    /// Starts the web server if it is not already running, then opens it in
+    /// your browser.
     ///
-    /// Normally TimeFold starts invisibly, as a tray icon. But Windows hides
-    /// new tray icons behind the "^" arrow, so a brand new user sees nothing
-    /// at all happen and reasonably concludes the app is broken. Showing the
-    /// window once proves it is alive and shows where its history lives.
+    /// The address carries the secret key, which is why TimeFold opens the
+    /// browser itself rather than telling you an address to type. Typing one
+    /// would not work: without the key the server answers nothing.
+    /// </summary>
+    private void OpenTheInterface()
+    {
+        try
+        {
+            string address = _host.Web.Start();
+
+            // UseShellExecute tells Windows to open this the way it would if
+            // you had clicked a link - which means your default browser.
+            ProcessStartInfo startInfo = new ProcessStartInfo();
+            startInfo.FileName = address;
+            startInfo.UseShellExecute = true;
+
+            Process.Start(startInfo);
+        }
+        catch (Exception error)
+        {
+            _host.Logger.Error("Could not open the web interface.", error);
+
+            MessageBox.Show(
+                "TimeFold could not open its interface.\n\n" + error.Message,
+                "TimeFold",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// The very first time TimeFold runs, open the interface.
     ///
+    /// Otherwise nothing at all appears to happen: Windows hides new tray icons
+    /// behind the arrow, so a new user reasonably concludes the app is broken.
     /// Only once. After that it starts quietly, as intended.
     /// </summary>
-    private void ShowWindowIfThisIsTheFirstRun()
+    private void OpenTheInterfaceIfThisIsTheFirstRun()
     {
         const string settingKey = "firstrun.completed";
 
@@ -92,28 +126,10 @@ public partial class App : Application
             return;
         }
 
-        ShowMainWindow();
+        OpenTheInterface();
 
         _host.Settings.SetValue(settingKey, "true");
-        _host.Logger.Info("First run - opened the window so the app is visible.");
-    }
-
-    private void ShowMainWindow()
-    {
-        if (_mainWindow == null)
-        {
-            return;
-        }
-
-        _mainWindow.Show();
-
-        if (_mainWindow.WindowState == WindowState.Minimized)
-        {
-            _mainWindow.WindowState = WindowState.Normal;
-        }
-
-        _mainWindow.Activate();
-        _mainWindow.RefreshNow();
+        _host.Logger.Info("First run - opened the interface so the app is visible.");
     }
 
     private void QuitApplication()

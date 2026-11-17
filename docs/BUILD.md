@@ -167,3 +167,36 @@ that class decides what is allowed to be written to disk, so it is the one place
 cannot be undone afterwards.
 
 Run them before every commit, and whenever you add a rule to the block list.
+
+## The web interface
+
+Since the UI moved to a web page, `src/TimeFold.Web/` holds a small HTTP server
+and the page itself:
+
+```
+src/TimeFold.Web/
+  WebServer.cs      the server, and the four rules that keep the port safe
+  ApiHandler.cs     everything the page can ask for
+  StaticFiles.cs    serves the page, and refuses to serve anything outside it
+  wwwroot/
+    index.html      the page
+    style.css       every colour and size, named once at the top
+    app.js          plain JavaScript, no framework, no build step
+```
+
+Nothing here needs installing or building. Change `style.css`, reload the page
+in the browser, and you see the change - the files are read from disk at
+runtime, not baked into the exe.
+
+**The server is not running most of the time.** It starts when you choose
+"Open TimeFold" from the tray icon, on a random port, with a fresh random key.
+If you never open the interface, no port is ever opened.
+
+To see the address while it is running, look in the log:
+
+```
+%LOCALAPPDATA%\TimeFold\logs	imefold-<date>.log
+```
+
+The port is logged. The key deliberately is not - a log file is plain text that
+gets copied around and pasted into bug reports.

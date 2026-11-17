@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TimeFold</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===================== Side bar ===================== -->
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">TimeFold</div>
+    </div>
+
+    <button class="nav-item is-active" data-view="timeline">
+      <span class="nav-dot"></span> Timeline
+    </button>
+    <button class="nav-item" data-view="apps">
+      <span class="nav-dot"></span> Blocked apps
+    </button>
+    <button class="nav-item" data-view="data">
+      <span class="nav-dot"></span> Your data
+    </button>
+
+    <div class="sidebar-foot">
+      <div class="recording-state" id="recordingState">
+        <span class="pulse" id="recordingPulse"></span>
+        <span id="recordingLabel">Recording</span>
+      </div>
+      <button class="btn btn-quiet btn-block" id="pauseButton">Pause</button>
+    </div>
+  </nav>
+
+  <!-- ===================== Main ===================== -->
+  <main class="main">
+
+    <!-- ---------- Timeline ---------- -->
+    <section class="view is-active" id="view-timeline">
+      <header class="page-head">
+        <div>
+          <h1 id="dayHeading">Today</h1>
+          <p class="subtle" id="daySubheading"></p>
+        </div>
+
+        <div class="search-wrap">
+          <input type="search" id="searchBox" placeholder="Search everything you have recorded..." />
+        </div>
+      </header>
+
+      <div class="toolbar">
+        <div class="day-nav">
+          <button class="btn btn-icon" id="prevDay" title="The day before">&#8592;</button>
+          <input type="date" id="dayPicker" />
+          <button class="btn btn-icon" id="nextDay" title="The day after">&#8594;</button>
+          <button class="btn" id="todayButton">Today</button>
+        </div>
+
+        <div class="stat-strip" id="dayStats"></div>
+      </div>
+
+      <div id="timelineBody"></div>
+    </section>
+
+    <!-- ---------- Blocked apps ---------- -->
+    <section class="view" id="view-apps">
+      <header class="page-head">
+        <div>
+          <h1>Blocked apps</h1>
+          <p class="subtle">
+            A blocked app is never written to the database. Not hidden &mdash; never saved.
+          </p>
+        </div>
+
+        <div class="search-wrap">
+          <input type="search" id="appSearch" placeholder="Find an app..." />
+        </div>
+      </header>
+
+      <div class="toolbar">
+        <label class="checkline">
+          <input type="checkbox" id="blockedOnly" /> <span>Blocked only</span>
+        </label>
+        <div class="grow"></div>
+        <button class="btn" id="rescanApps">Rescan apps</button>
+      </div>
+
+      <div id="appsBody" class="card"></div>
+
+      <details class="advanced">
+        <summary>Advanced rules</summary>
+
+        <p class="subtle">
+          For what a list of apps cannot say: a whole folder, or private words in a window title.
+        </p>
+
+        <div class="rule-add">
+          <select id="ruleType">
+            <option value="ExeFileName">Program name</option>
+            <option value="ExePathContains" selected>Folder or path</option>
+            <option value="WindowTitleContains">Words in title</option>
+          </select>
+          <input type="text" id="rulePattern" placeholder="for example \Banking\ or Incognito" />
+          <button class="btn btn-primary" id="addRule">Add rule</button>
+        </div>
+
+        <p class="subtle small" id="ruleHelp"></p>
+
+        <div id="rulesBody" class="card"></div>
+      </details>
+    </section>
+
+    <!-- ---------- Your data ---------- -->
+    <section class="view" id="view-data">
+      <header class="page-head">
+        <div>
+          <h1>Your data</h1>
+          <p class="subtle" id="dataSummary"></p>
+        </div>
+      </header>
+
+      <div class="card pad">
+        <h2>Take a copy</h2>
+        <p class="subtle">
+          Everything, as a plain JSON file you can open in Notepad or load anywhere else.
+          Do this before deleting anything.
+        </p>
+        <button class="btn btn-primary" id="exportButton">Export everything</button>
+      </div>
+
+      <div class="card pad">
+        <h2>Restore from a copy</h2>
+        <p class="subtle">
+          Adds records from an export file back. Nothing already here is lost, and
+          restoring the same file twice is harmless.
+        </p>
+        <input type="file" id="importFile" accept=".json" />
+      </div>
+
+      <div class="card pad danger-card">
+        <h2>Delete</h2>
+        <p class="subtle">
+          Deleting cannot be undone. Your block rules and settings are kept.
+        </p>
+        <div class="row">
+          <input type="date" id="deleteDayPicker" />
+          <button class="btn" id="deleteDayButton">Delete that day</button>
+          <div class="grow"></div>
+          <button class="btn btn-danger" id="deleteAllButton">Delete everything</button>
+        </div>
+      </div>
+
+      <p class="subtle small" id="dataPath"></p>
+    </section>
+  </main>
+
+  <!-- ===================== Little helpers ===================== -->
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <h2 id="modalTitle"></h2>
+      <p id="modalBody"></p>
+      <div class="modal-buttons">
+        <button class="btn" id="modalCancel">Cancel</button>
+        <button class="btn btn-danger" id="modalConfirm">Yes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu" id="rowMenu">
+    <button data-action="delete-entry">Delete this entry</button>
+    <button data-action="delete-app">Delete everything from this app</button>
+    <hr />
+    <button data-action="block-app">Never record this app again</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

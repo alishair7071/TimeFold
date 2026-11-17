@@ -119,10 +119,20 @@ busy.
 |---|---|---|
 | **Search / Query** | Finds records by time, app, website, keyword | Phase 1 (basic) → Phase 3 (real) |
 | **Screen (the UI)** | Timeline, search box, screenshot viewer, settings | Phase 1 |
+| **Web server** | Serves the UI to your browser, on 127.0.0.1 only, with a secret key | after Phase 3 |
 | **Question Answerer** | Turns your plain-language question into searches, then into an answer | Phase 8 |
 
 The UI talks only to Search and Settings. It never reads the database and never calls Windows APIs.
-That is what makes the UI replaceable.
+That is what makes the UI replaceable - and it was replaced, which proved the point. The original
+WPF windows were deleted and became a web page, and nothing below the UI changed at all.
+
+**The UI is now a web page**, served by TimeFold itself to your own browser. The tray icon opens it.
+Four rules keep that port from becoming a way in:
+
+1. It listens on **127.0.0.1 only** - nothing on your network can reach it.
+2. Every request needs a **secret key**, generated fresh each time the server starts.
+3. The **port is random**, so there is nothing to look for.
+4. The server **only starts when you open the interface**. Never opened means never listening.
 
 The Question Answerer is **just another user of Search**. It gets no special access to your data.
 This is the reason it can only answer from real records: there is no other path for it to get
@@ -203,7 +213,8 @@ TimeFold\
 │   ├── workers\       OCR, sessions, retention, backup
 │   ├── search\        queries and filters
 │   ├── ai\            question answering                 (Phase 8)
-│   └── ui\            the screen — no database, no Windows APIs
+│   ├── ui\            the screen — no database, no Windows APIs
+│   └── web\           the local server + the HTML, CSS and JavaScript
 └── installer\
 ```
 

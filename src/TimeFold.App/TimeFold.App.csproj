@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TimeFold.Core\TimeFold.Core.csproj" />
+    <ProjectReference Include="..\TimeFold.Web\TimeFold.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>
